@@ -2,7 +2,7 @@ class fileManager{
     static saveAllFiles(subsystem){
         // folder path / subsytemConstants.java
         //saveStrings([this.getConstantsString(subsystem)], `${subsystem.name}/${subsystem.name}Constants`, "java");
-        saveStrings([this.getRealString(subsystem)], `${subsystem.name}/${subsystem.name}IOReal`, "java");
+        saveStrings([this.getRealString(subsystem)], `${subsystem.name}IOReal`, "java");
     }
 
     static getConstantsString(subsystem){
@@ -35,42 +35,42 @@ class fileManager{
         let baseStatusSignalDefinitions = "";
 
         for(let i = 0; i < subsystem.motors.length; i++){
-            motorDefinitions += subsystem.motors[i].getDefinitionAsString+"\n";
-            debouncerDefinitions += `${subsystem.motors[i].name}Debounce = new Debouncer(0.5)`;
+            motorDefinitions += subsystem.motors[i].getDefinitionAsString()+"\n\t";
+            debouncerDefinitions += `${subsystem.motors[i].name}Debounce = new Debouncer(0.5);\n\t`;
 
             for(let j = 0; j < subsystem.motors[i].loggedVariables.length; j++){
-                statusSignalDefinitions += subsystem.motors[i].loggedVariables[j].getStatusDefinition()+"\n";
+                statusSignalDefinitions += subsystem.motors[i].loggedVariables[j].getStatusDefinition()+"\n\t\t";
             }
 
-            motorConfigDefinitions += subsystem.motors[i].getConfigAsString();
+            motorConfigDefinitions += subsystem.motors[i].getConfigAsString()+"\n";
             neutralDefinitions += `${subsystem.motors[i].name}.setNeutralMode(${subsystem.motors[i].neutralMode});`;
-            tryUntilOkDefinitions += `tryUntilOk(\n5,\n() ->${subsystem.motors[i].name}\n.getConfigurator()\n.apply(${subsystem.motors[i].name}Config, 0.25));`;
-            baseStatusSignalDefinitions += subsystem.motors[i].getStautsSignalDefinition();
+            tryUntilOkDefinitions += `tryUntilOk(\n\t\t\t5,\n\t\t\t() ->${subsystem.motors[i].name}\n\t\t\t.getConfigurator()\n\t\t\t.apply(${subsystem.motors[i].name}Config, 0.25));\n`;
+            baseStatusSignalDefinitions += subsystem.motors[i].getStautsSignalDefinition()+"\n\t\t";
         }
 
         let controlMethodDefinitions = "";
         
         for(let i = 0; i < subsystem.controlMethods.length; i++){
-            controlMethodDefinitions += subsystem.controlMethods[i].getRealFunctionAsString();
+            controlMethodDefinitions += subsystem.controlMethods[i].getRealFunctionAsString()+"\n\t";
         }
 
         let returnString = 
 `public class ${subsystem.name}IOReal{
-    ${motorDefinitions}
-    ${debouncerDefinitions}
-    ${statusSignalDefinitions}
-    public ${subsystem.name}Real{
-        ${motorConfigDefinitions}
-        ${neutralDefinitions}
-        ${tryUntilOkDefinitions}
-        ${baseStatusSignalDefinitions}
-    }
-    
-    @Override
-    public void updateInputs(${subsystem.name}IOInputs inputs) {
-        ${subsystem.getAllStatusUpdates()}
-    }
-    ${controlMethodDefinitions}
+\t${motorDefinitions}
+\t${debouncerDefinitions}
+${statusSignalDefinitions}
+\tpublic ${subsystem.name}IOReal{
+\t\t${motorConfigDefinitions}
+\t\t${neutralDefinitions}
+\t\t${tryUntilOkDefinitions}
+\t\t${baseStatusSignalDefinitions}
+\t}
+\t
+\t@Override
+\tpublic void updateInputs(${subsystem.name}IOInputs inputs) {
+\t\t${subsystem.getAllStatusUpdates()}
+\t}
+\t${controlMethodDefinitions}
 }`;
         return returnString;
     }

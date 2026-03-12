@@ -22,15 +22,16 @@ class Subsystem{
     }
 
     getAllStatusUpdates(){
-        returnString = "";
+        let returnString = "";
         for(let i = 0; i < this.motors.length; i++){
-            returnString += this.motors[i].getStatusUpdate();
+            returnString += this.motors[i].getStatusUpdate()+"\n\t\t";
         }
         for(let i = 0; i < this.motors.length; i++){
             for(let j = 0; j < this.motors[i].loggedVariables.length; j++){
-                returnString += this.motors[i].loggedVariables[j].getStatusUpdate()
+                returnString += this.motors[i].loggedVariables[j].getStatusUpdate()+"\n\t\t"
             }
         }
+        return returnString;
     }
 }
 
@@ -47,8 +48,8 @@ class controlMethod{
     }
 
     getRealFunctionAsString(){
-        if(this.returnsCommand) return `public static Command ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\treturn Commands.runOnce(()-> ${this.motor.name}.setControl(new ${this.controlType}(${this.inputName})))`
-        return `public static void ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t${this.motor.name}.setControl(new ${this.controlType}(${this.inputName}))`
+        if(this.returnsCommand) return `public static Command ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\treturn Commands.runOnce(()-> ${this.motor.name}.setControl(new ${this.controlType}(${this.inputName})))\n}`
+        return `public static void ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\t${this.motor.name}.setControl(new ${this.controlType}(${this.inputName}))\n\t}`
     }
 }
 
@@ -76,7 +77,7 @@ class motor{
                 break;
             }
         }
-        if(!alreadyHasSuperType) this.configValues.push(new motorConfigValue(configSuperType, configSubType, configValue));
+        if(!alreadyHasSuperType) this.configValues.push(new motorConfigValue(configSuperType, [configSubType], [configValue]));
     }
     getDefinitionAsString(){
         let individualNamePieces = this.name.split(/(?=[A-Z])/);
@@ -85,34 +86,35 @@ class motor{
             newFormatName += individualNamePieces[i];
             if(i != individualNamePieces.length) newFormatName += "_";
         }
-        return `private final TalonFX ${this.name}Motor =\n new TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID, ${this.subsystem.name}Constants.canivoreCANBus)`
+        return `private final TalonFX ${this.name}Motor =\n\t\tnew TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID, ${this.subsystem.name}Constants.canivoreCANBus);`
     }
     getConfigAsString(){
         let allMotorValues = "";
         for(let value of this.configValues){
-            allMotorValues += `\n${value.getAsString()}`
+            allMotorValues += `\n\t\t\t\t${value.getAsString()}`
         }
         allMotorValues += ";"
-        return `var ${this.name}Config = \n\tnew TalonFXConfiguration()${allMotorValues}`
+        return `var ${this.name}Config = \n\t\t\tnew TalonFXConfiguration()${allMotorValues}`
     }
     addLoggedVariable(type){
         this.loggedVariables.push(new motorLoggedVaraible(this, type));
+        return this;
     }
     getStautsSignalDefinition(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables.variableType}`
-            if(i != this.loggedVariables.length) variableNames += ", ";
+            variableNames += `${this.name}${this.loggedVariables[i].variableType}`
+            if(i < this.loggedVariables.length-1) variableNames += ", ";
         }
-        return `BaseStatusSignal.setUpdateFrequencyForAll(\n${this.name}.getIsProLicensed().getValue() ? 200 : 50, ${variableNames});`
+        return `BaseStatusSignal.setUpdateFrequencyForAll(\n\t\t\t${this.name}.getIsProLicensed().getValue() ? 200 : 50, ${variableNames});`
     }
     getStatusUpdate(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables.variableType}`
-            if(i != this.loggedVariables.length) variableNames += ", ";
+            variableNames += `${this.name}${this.loggedVariables[i].variableType}`
+            if(i < this.loggedVariables.length-1) variableNames += ", ";
         }
-        return `var ${this.motors[i].name}Status = BaseStatusSignal.refreshAll(${variableNames});`;
+        return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});`;
     }
 }
 
@@ -129,7 +131,7 @@ class motorLoggedVaraible{
         this.variableType = variableType;
     }
     getStatusDefinition(){
-        return `private final StatusSignal<${this.variableType}> ${this.motor.name}${this.variableType} = ${this.motor.name}.get${this.type}();`
+        return `\tprivate final StatusSignal<${this.variableType}> ${this.motor.name}${this.variableType} = ${this.motor.name}.get${this.variableType}();`
     }
     getStatusUpdate(){
         return `inputs.${this.motor.name}${this.variableType} = ${this.motor.name}${this.variableType}.getValue();`
@@ -159,11 +161,11 @@ class motorConfigValue{
         return this;
     }
     getAsString(){
-        totalValueList = "";
+        let totalValueList = "";
         for(let i = 0; i < this.subTypes.length; i++){
-            totalValueList += `\n\t\t.with${this.subTypes[i]}(\n${this.subValues[i]}\n)`
+            totalValueList += `\n\t\t\t\t.with${this.subTypes[i]}(${this.subValues[i]})`
         }
-        return `.with${this.type}(\n\tnew${this.type}Configs()${totalValueList}`
+        return `.with${this.superType}(\n\t\t\t\t\tnew ${this.superType}Configs()${totalValueList})`
     }
 }
 
