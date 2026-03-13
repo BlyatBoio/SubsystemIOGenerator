@@ -1,9 +1,9 @@
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  let subsystem1 = new Subsystem("Intake");
+  let subsystem1 = new Subsystem("Climber");
 
   subsystem1.addConstant("int", "CLIMBER_MOTOR_ID", 20);
-  subsystem1.addConstSant("int", "CLIMBER_ROTATION_RATIO", 45);
+  subsystem1.addConstant("int", "CLIMBER_ROTATION_RATIO", 45);
   subsystem1.addConstant("Angle", "CLIMBER_MAX_EXTENSION_SETPOINT ", "Rotations.of(10)");
   subsystem1.addConstant("Angle", "CLIMBER_MIN_EXTENSION_SETPOINT ", "Rotations.of(0.0");
 
@@ -21,10 +21,13 @@ function setup() {
   subsystem1.addMotor(climberMotor);
 
   subsystem1.addControlMethod(new controlMethod("setClimberToSetpoint", climberMotor, controlMethod.positionVoltage, "position"));
-
-  fileManager.saveAllFiles(subsystem1);
+  initializeUI()
+  //fileManager.saveAllFiles(subsystem1);
 }
 
 function draw() {
-  background(220);
+  background(100);
+  // Draw Top Border
+  fill(50);
+  rect(0, 0, width, height/8);
 }
