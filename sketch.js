@@ -1,21 +1,27 @@
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  let subsystem1 = new Subsystem("intake");
+  let subsystem1 = new Subsystem("Intake");
 
-  let intakeMotor1 = new motor(motor.x60, "intakeMotor1", subsystem1);
-  intakeMotor1.addConfigValue(motorConfig.Feedback, motorConfig.FeedbackSensorSource, "FeedbackSensorSourceValue.RotorSensor")
-  intakeMotor1.addLoggedVariable(motorLoggedVaraible.position).addLoggedVariable(motorLoggedVaraible.closedLoopError).addLoggedVariable(motorLoggedVaraible.velocity);
+  subsystem1.addConstant("int", "CLIMBER_MOTOR_ID", 20);
+  subsystem1.addConstSant("int", "CLIMBER_ROTATION_RATIO", 45);
+  subsystem1.addConstant("Angle", "CLIMBER_MAX_EXTENSION_SETPOINT ", "Rotations.of(10)");
+  subsystem1.addConstant("Angle", "CLIMBER_MIN_EXTENSION_SETPOINT ", "Rotations.of(0.0");
 
-  let intakeMotor2 = new motor(motor.x44, "intakeMotor2", subsystem1);
-  intakeMotor2.addConfigValue(motorConfig.Feedback, motorConfig.FeedbackSensorSource, "FeedbackSensorSourceValue.RotorSensor")
-  intakeMotor2.addLoggedVariable(motorLoggedVaraible.position).addLoggedVariable(motorLoggedVaraible.closedLoopError).addLoggedVariable(motorLoggedVaraible.velocity);
+  let climberMotor = new motor(motor.x60, "climberMotor", subsystem1, motor.positionControl);
+  climberMotor.addLoggedVariable(motorLoggedVaraible.isConnected);
+  climberMotor.addLoggedVariable(motorLoggedVaraible.position);
+  climberMotor.addLoggedVariable(motorLoggedVaraible.supplyCurrent);
+  climberMotor.addLoggedVariable(motorLoggedVaraible.closedLoopError);
 
-  subsystem1.addMotor(intakeMotor1);
-  subsystem1.addMotor(intakeMotor2);
-  subsystem1.addControlMethod(new controlMethod("driveIntake", intakeMotor1, controlMethod.velocityVoltage, "velocity", false));
-  subsystem1.addControlMethod(new controlMethod("driveIntake", intakeMotor2, controlMethod.velocityVoltage, "velocity", false));
-  subsystem1.addConstant("String", "INTAKE_MOTOR1_ID", "12");
-  subsystem1.addConstant("String", "INTAKE_MOTOR1_ID", "13");
+  climberMotor.addConfigValue(motorConfig.Feedback, motorConfig.FeedbackSensorSource, "FeedbackSensorSourceValue.RotorSensor");
+  climberMotor.addConfigValue(motorConfig.Slot0, motorConfig.KP, 0.001);
+  climberMotor.addConfigValue(motorConfig.Slot0, motorConfig.KV, 0.1);
+  climberMotor.setNeutralMode("NeutralModeValue.Coast");
+
+  subsystem1.addMotor(climberMotor);
+
+  subsystem1.addControlMethod(new controlMethod("setClimberToSetpoint", climberMotor, controlMethod.positionVoltage, "position"));
+
   fileManager.saveAllFiles(subsystem1);
 }
 

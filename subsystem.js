@@ -39,31 +39,36 @@ class controlMethod{
     static positionVoltage = "PositionVoltage";
     static velocityVoltage = "VelocityVoltage";
 
-    constructor(name, motor, controlType, inputName, returnsCommand){
+    constructor(name, motor, controlType, inputName){
         this.name = name;
         this.motor = motor;
         this.controlType = controlType;
         this.inputName = inputName;
-        this.returnsCommand = returnsCommand;
     }
 
     getRealFunctionAsString(){
-        if(this.returnsCommand) return `public static Command ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\treturn Commands.runOnce(()-> ${this.motor.name}.setControl(new ${this.controlType}(${this.inputName})))\n}`
-        return `public static void ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\t${this.motor.name}.setControl(new ${this.controlType}(${this.inputName}))\n\t}`
+        return `public static void ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\t${this.motor.name}.setControl(new ${this.controlType}(${this.inputName}));\n\t}`
+    }
+    
+    getSimFunctionAsString(){
+        return `public static void ${this.name}(${this.controlType == motor.positionVoltage?"Angle":"AngularVelocity"} ${this.inputName}){\n\t\t${this.motor.name}Controller.setSetpoint(${this.inputName}.in(${this.controlType == motor.positionVoltage?"Rotations":"RotationsPerSecond"}));\n\t}`
     }
 }
 
 class motor{
     static x44;
     static x60;
+    static positionControl = "Position";
+    static velocityControl = "velocity";
 
-    constructor(type, name, subsystem){
+    constructor(type, name, subsystem, prefferedControlType){
         this.type = type;
         this.name = name;
         this.configValues = [];
         this.neutralMode = "";
         this.subsystem = subsystem
         this.loggedVariables = [];
+        this.prefferedControlType = prefferedControlType;
     }
     setNeutralMode(value){
         this.neutralMode = value;
@@ -72,21 +77,24 @@ class motor{
         let alreadyHasSuperType = false;
         for(let value of this.configValues){
             if(value.superType == configSuperType){
-                value.addConfigValue(configSubType, configValue);
+                value.addSubValue(configSubType, configValue);
                 alreadyHasSuperType = true;
                 break;
             }
         }
         if(!alreadyHasSuperType) this.configValues.push(new motorConfigValue(configSuperType, [configSubType], [configValue]));
     }
-    getDefinitionAsString(){
+    getRealDefinitionAsString(){
         let individualNamePieces = this.name.split(/(?=[A-Z])/);
         let newFormatName = ""
         for(let i = 0; i < individualNamePieces.length; i++){
             newFormatName += individualNamePieces[i];
             if(i != individualNamePieces.length) newFormatName += "_";
         }
-        return `private final TalonFX ${this.name}Motor =\n\t\tnew TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID, ${this.subsystem.name}Constants.canivoreCANBus);`
+        return `private final TalonFX ${this.name} =\n\t\tnew TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID, ${this.subsystem.name}Constants.canivoreCANBus);`
+    }
+    getSimDefinitionAsString(){
+        return `private static final DCMotor ${this.name} = new DCMotor.getKrakenX${this.type==motor.x44?"44":"60"}Foc(1);\n\tprivate DCMotorSim ${this.name}Sim;`
     }
     getConfigAsString(){
         let allMotorValues = "";
@@ -103,7 +111,7 @@ class motor{
     getStautsSignalDefinition(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables[i].variableType}`
+            variableNames += `${this.name}${this.loggedVariables[i].valueType}`
             if(i < this.loggedVariables.length-1) variableNames += ", ";
         }
         return `BaseStatusSignal.setUpdateFrequencyForAll(\n\t\t\t${this.name}.getIsProLicensed().getValue() ? 200 : 50, ${variableNames});`
@@ -111,7 +119,7 @@ class motor{
     getStatusUpdate(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables[i].variableType}`
+            variableNames += `${this.name}${this.loggedVariables[i].valueType}`
             if(i < this.loggedVariables.length-1) variableNames += ", ";
         }
         return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});`;
@@ -122,19 +130,49 @@ class motorLoggedVaraible{
     static velocity = "Velocity";
     static position = "Position";
     static closedLoopError = "ClosedLoopError";
-    static position = "Position";
     static supplyCurrent = "SupplyCurrent";
     static motorStallCurrent = "MotorStallCurrent";
+    static isConnected = "Connected";
 
-    constructor(motor, variableType){
+    constructor(motor, valueType){
         this.motor = motor;
-        this.variableType = variableType;
+        this.valueType = valueType;
     }
     getStatusDefinition(){
-        return `\tprivate final StatusSignal<${this.variableType}> ${this.motor.name}${this.variableType} = ${this.motor.name}.get${this.variableType}();`
+        return `\tprivate final StatusSignal<${this.getVariableType()}> ${this.motor.name}${this.valueType} = ${this.motor.name}.get${this.valueType}();`
     }
     getStatusUpdate(){
-        return `inputs.${this.motor.name}${this.variableType} = ${this.motor.name}${this.variableType}.getValue();`
+        return `inputs.${this.motor.name}${this.valueType} = ${this.motor.name}${this.valueType}.getValue();`
+    }
+    getSimGetterFunction(){
+        switch(this.valueType){
+            case motorLoggedVaraible.velocity: return `Angle.ofBaseUnits(${this.motor.name}Sim.getAngularPositionRotations(), Rotations)`;
+            case motorLoggedVaraible.position: return `${this.motor.name}Sim.getAngularPositionRotations()`;
+            case motorLoggedVaraible.closedLoopError: return `${this.motor.name}Sim.getError()`;
+            case motorLoggedVaraible.supplyCurrent: return "null";
+            case motorLoggedVaraible.motorStallCurrent: return "null";
+            case motorLoggedVaraible.isConnected: return "true";;
+        }
+    }
+    getVariableType(){
+        switch(this.valueType){
+            case motorLoggedVaraible.velocity: return "AngularVelocity";
+            case motorLoggedVaraible.position: return "Angle";
+            case motorLoggedVaraible.closedLoopError: return "double";
+            case motorLoggedVaraible.supplyCurrent: return "Current";
+            case motorLoggedVaraible.motorStallCurrent: return "Current";
+            case motorLoggedVaraible.isConnected: return "boolean";
+        }
+    }
+    getDefaultValue(){
+        switch(this.valueType){
+            case motorLoggedVaraible.velocity: return "RotationsPerSecond.zero()";
+            case motorLoggedVaraible.position: return "Degrees.zero()";
+            case motorLoggedVaraible.closedLoopError: return "0";
+            case motorLoggedVaraible.supplyCurrent: return "Amps.zero()";
+            case motorLoggedVaraible.motorStallCurrent: return "Amps.zero()";
+            case motorLoggedVaraible.isConnected: return "true";
+        }
     }
 }
 
@@ -143,9 +181,11 @@ class motorConfig{
     static Slot0 = "Slot0";
     static FeedbackSensorSource = "FeedbackSensorSource";
     static SensorToMechanismRatio = "SensorToMechanismRatio"
-    static MotorOutput = "MotorOutput"
     static Inverted = "Inverted"
     static Brake = 'Brake'
+    static CurrentLimits = "CurrentLimits"
+    static KP = "KP";
+    static KV = "KV";
 }
 
 class motorConfigValue{
