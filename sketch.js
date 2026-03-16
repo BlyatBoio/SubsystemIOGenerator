@@ -34,6 +34,8 @@ function setup() {
 function draw() {
   background(100);
   // Draw Top Border
+  mouseBounds.setPosition(mouseX, mouseY);
+  element.updateAllElements();
   fill(50);
   rect(0, 0, width, height/8);
 }
