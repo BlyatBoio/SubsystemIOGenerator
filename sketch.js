@@ -1,5 +1,11 @@
+let mainSubsystem;
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
+  mainSubsystem = new Subsystem("Climber");
+  initializeUI();
+
+  /* Example Code Defined Subsystem
   let subsystem1 = new Subsystem("Climber");
 
   subsystem1.addConstant("int", "CLIMBER_MOTOR_ID", 20);
@@ -21,9 +27,9 @@ function setup() {
   subsystem1.addMotor(climberMotor);
 
   subsystem1.addControlMethod(new controlMethod("setClimberToSetpoint", climberMotor, controlMethod.positionVoltage, "position"));
-  initializeUI()
   //fileManager.saveAllFiles(subsystem1);
-}
+  */
+  }
 
 function draw() {
   background(100);
