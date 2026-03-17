@@ -38,6 +38,7 @@ function draw() {
   mouseBounds.setPosition(mouseX, mouseY);
   element.updateAllElements();
   mouseScrolled = 0;
+  if(!mouseIsPressed) buttonHasBeenPressed = false;
 }
 
 function mouseWheel(event){

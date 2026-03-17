@@ -25,6 +25,7 @@ let addConstantMenu;
 let submitConstantButton;
 let constantNameBox;
 let constantValueBox;
+let buttonHasBeenPressed = false;
 
 function initializeUI(){
     //global values
@@ -54,17 +55,19 @@ function initializeUI(){
     // bind button actions
     submitConstantButton.onPress(()=> {
         let newMenu = new menu(new bounds(0, 0, 120, 60), "");
-        let nameArea = new textArea(new bounds(10, 10, 50, 30));
-        let valueArea = new textArea(new bounds(60, 10, 50, 30));
+        let removeButton = new button(new bounds(5, 10, 20, 40), "X")
+        let nameArea = new textArea(new bounds(30, 10, 40, 20));
+        let valueArea = new textArea(new bounds(70, 10, 40, 20));
 
         nameArea.textInput.value(constantNameBox.textInput.value());
         valueArea.textInput.value(constantValueBox.textInput.value());
 
+        newMenu.addElement(removeButton);
         newMenu.addElement(nameArea);
         newMenu.addElement(valueArea);
 
         constantList.addElement(newMenu);
-        console.log(constantsMenu);
+        removeButton.onPress(() => constantList.removeElement(constantList.elements.indexOf(newMenu)));
         addConstantMenu.hide();
     });
     addConstantButton.onPress(() => addConstantMenu.show());
@@ -124,6 +127,13 @@ function constructMotorMenu(motorName){
         newCheckbox.bindToElement(newLable);
         listOfVariables.addElement(newLable);
     }
+    let removeMotorButton = new button(new bounds(marginSpacing, height - 100, width/5 - marginSpacing*2, 50), "Remove Motor");
+    removeMotorButton.onPress(() => {
+        if(motorScrollBar.tabs.length > 1) {
+            motorScrollBar.removeTab(motorScrollBar.tabs.indexOf(newMotorMenu));
+            newMotorMenu.hide();
+        }});
+    newMotorMenu.addElement(removeMotorButton);
     newMotorMenu.addElement(listOfVariables);
     return newMotorMenu;
 }
@@ -380,8 +390,9 @@ class button extends element{
         if(this.isVisible && mouseBounds.isPartiallyWithin(this.bounds)) {
             fill(curColors.secondary);
             if(mouseIsPressed){
-                if(!this.hasBeenPressed && this.callback != undefined) this.callback();
+                if(!buttonHasBeenPressed && !this.hasBeenPressed && this.callback != undefined) this.callback();
                 this.hasBeenPressed = true;
+                buttonHasBeenPressed = true;
             }
             else this.hasBeenPressed = false;
         }
@@ -494,6 +505,7 @@ class scrollingList extends element{
             this.elements[i].hide();
         }
         for(let i = this.scrollPosition; i < this.elements.length; i++){
+            if(this.elements.length == 0) break;
             this.elements[i].show();
             let newBounds;
             if(this.scrollDirection == scrollingList.scrollVertical){
@@ -522,6 +534,11 @@ class scrollingList extends element{
             }
         }
     }
+    removeElement(index){
+        this.elements[index].hide()
+        this.elements.splice(index, 1);
+        this.updateElementBounds();
+    }
     addElement(element){
         this.elements.push(element);
         element.bindToElement(this);
@@ -529,12 +546,12 @@ class scrollingList extends element{
     }
     scrollForward(amount){
         this.scrollPosition += int(amount);
-        if(this.scrollPosition > this.elements.length-1) this.scrollPosition = this.elements.length-1;
+        this.scrollPosition = constrain(this.scrollPosition, 0, this.elements.length-1)
         this.updateElementBounds();
     }
     scrollBackward(amount){
         this.scrollPosition -= int(amount);
-        if(this.scrollPosition < 0) this.scrollPosition = 0;
+        this.scrollPosition = constrain(this.scrollPosition, 0, this.elements.length-1)
         this.updateElementBounds();
     }
     draw(){
@@ -568,7 +585,10 @@ class tabScrollBar extends element{
         menu.hide();
     }
     removeTab(index){
-
+        this.selectionList.removeElement(index)
+        this.tabs.splice(index, 1);
+        this.currentTab = index-1;
+        if(this.currentTab < 0) this.currentTab = 0;
     }
     setCurrentTab(index){
         if(index < 0 || index > this.tabs.length){console.error("Index Out Of Bounds In Set Current Tab"); return;}
