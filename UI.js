@@ -3,9 +3,7 @@ let marginSpacing = 10;
 let curColors;
 
 let motorMenu;
-let motorOneMenu;
 let motorScrollBar
-let motorTitle
 
 let mouseBounds;
 
@@ -19,24 +17,73 @@ let subsystemTitleInput;
 let allMotorVariables = ["Position","Velocity","PositionClosedLoopError","VelocityClosedLoopError","SupplyCurrent","Connected","Temperature"];
 let numMotors = 0;
 
+let constantsMenu;
+let constantList;
+
+let addConstantButton;
+let addConstantMenu;
+let submitConstantButton;
+let constantNameBox;
+let constantValueBox;
+
 function initializeUI(){
     //global values
     curColors = new colorScheme(50, 60, 200, 120);
     mouseBounds = new bounds(mouseX - 1, mouseY - 1, 2, 2);
 
+    // define constant menu elements
+    constantsMenu = new menu(new bounds(width - width/5, 0, width/5, height), "Constants");
+    constantList = new scrollingList(constantsMenu.bounds.copyDimensions().addPosition(marginSpacing, height/8).addSize(-marginSpacing*2, -((height/8)+marginSpacing)), [], scrollingList.scrollVertical);
+    
+    constantsMenu.addElement(constantList);
+    // define add constant menu
+    addConstantMenu = new menu(new bounds(width/2-width/10, height/2-height/10, width/5, height/5));
+    submitConstantButton = new button(new bounds(width/2 - width/40, height/2 + height/10 + marginSpacing, width/20, height/20), "Add Constant");
+    addConstantButton = new button(new bounds(width - width/5 + marginSpacing, marginSpacing, 90, 40), "Add Constant");
+    constantNameBox = new textArea(addConstantMenu.bounds.copyDimensions().addSize(-width/30, -height/8).addPosition(width/60, marginSpacing));
+    constantValueBox = new textArea(addConstantMenu.bounds.copyDimensions().addSize(-width/30, -height/8).addPosition(width/60, marginSpacing*2 + height/12));
+    
+    constantNameBox.textInput.style('text-align', 'center');
+    constantNameBox.textInput.style('font-size', '20px');
+    constantNameBox.textInput.value("Name");
+
+    constantValueBox.textInput.style('text-align', 'center');
+    constantValueBox.textInput.style('font-size', '20px');
+    constantValueBox.textInput.value("Value");
+
+    // bind button actions
+    submitConstantButton.onPress(()=> {
+        let newMenu = new menu(new bounds(0, 0, 120, 60), "");
+        let nameArea = new textArea(new bounds(10, 10, 50, 30));
+        let valueArea = new textArea(new bounds(60, 10, 50, 30));
+
+        nameArea.textInput.value(constantNameBox.textInput.value());
+        valueArea.textInput.value(constantValueBox.textInput.value());
+
+        newMenu.addElement(nameArea);
+        newMenu.addElement(valueArea);
+
+        constantList.addElement(newMenu);
+        console.log(constantsMenu);
+        addConstantMenu.hide();
+    });
+    addConstantButton.onPress(() => addConstantMenu.show());
+
+    // add all elements
+    addConstantMenu.addElement(submitConstantButton);
+    addConstantMenu.addElement(constantNameBox);
+    addConstantMenu.addElement(constantValueBox);
+    addConstantMenu.hide();
+
     // define motor menu elements
     motorMenu = new menu(new bounds(0, 0, width/5, height), "Motors");
     motorScrollBar = new tabScrollBar(new bounds(marginSpacing, marginSpacing + 50, (width/5) - (marginSpacing*2), 40 + marginSpacing*2));
-    motorTitle = new lable(new bounds(marginSpacing, (marginSpacing*4)+90, (width/5)-(marginSpacing*2), 30), "Motors");
 
     // add filler motor tab
     motorScrollBar.addTab(constructMotorMenu("Example"));
 
-    motorTitle.setLableGetter(() => motorScrollBar.selectionList.elements[motorScrollBar.currentTab].lable);
-
     // add main elements to menu
     motorMenu.addElement(motorScrollBar);
-    motorMenu.addElement(motorTitle);
 
     // define add motor menu
     addMotorMenu = new menu(new bounds(width/2-width/10, height/2-height/10, width/5, height/5));
@@ -48,27 +95,29 @@ function initializeUI(){
     motorNameBox.textInput.style('font-size', '30px');
     motorNameBox.textInput.value("Motor_1");
 
+    // bind button actions
     submitMotorButton.onPress(()=> {
         motorScrollBar.addTab(constructMotorMenu(motorNameBox.getValue())); 
         addMotorMenu.hide();
         motorNameBox.textInput.value("Motor_"+numMotors);
     });
+    addMotorButton.onPress(() => addMotorMenu.show());
+
+    // add all elements
     addMotorMenu.addElement(submitMotorButton);
     addMotorMenu.addElement(motorNameBox);
     addMotorMenu.hide();
 
+    // define and style subsystem title
     subsystemTitleInput = new textArea(new bounds(width/2 - width/10, marginSpacing, width/5, height / 8));
     subsystemTitleInput.textInput.style('text-align', 'center');
     subsystemTitleInput.textInput.style('font-size', '50px');
-
-    addMotorButton.onPress(() => addMotorMenu.show());
 }
 
 function constructMotorMenu(motorName){
     numMotors ++;
-    let newMotorMenu = new menu(new bounds(marginSpacing, (marginSpacing*4) + 60 + (height/10), (width/5) - (marginSpacing*2), height - ((marginSpacing*3) + 50 + (height/10))), motorName);
-    //let newMotorMenu = new menu(new bounds(0, 0, 100, 200), "Motors");
-    let listOfVariables = new scrollingList(newMotorMenu.bounds.copyDimensions(), [], scrollingList.scrollVertical);
+    let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, height/5).addSize(-marginSpacing*2, -(height/8 + marginSpacing)), motorName);
+    let listOfVariables = new scrollingList(newMotorMenu.bounds.copyDimensions().addPosition(0, 50).addSize(0, -50), [], scrollingList.scrollVertical);
     for(let i = 0; i < allMotorVariables.length; i++){
         let newLable = new lable(new bounds(0, 0, 50, 30), allMotorVariables[i]);
         let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
@@ -311,7 +360,7 @@ class menu extends element{
         fill(curColors.contrast);
         textAlign(CENTER);
         textSize(this.bounds.w/10);
-        text(this.lable, this.bounds.x + this.bounds.w/2, this.bounds.y + marginSpacing + 30);
+        text(this.lable, this.bounds.x, this.bounds.y + marginSpacing, this.bounds.w, this.bounds.h);
     }
 }
 
@@ -350,6 +399,11 @@ class textArea extends element{
     constructor(bounds){
         super(bounds);
         this.textInput = createInput();
+        this.textInput.position(this.bounds.x, this.bounds.y);
+        this.textInput.size(this.bounds.w, this.bounds.h);
+    }
+    draw(){
+        super.draw();
         this.textInput.position(this.bounds.x, this.bounds.y);
         this.textInput.size(this.bounds.w, this.bounds.h);
     }
@@ -445,7 +499,7 @@ class scrollingList extends element{
             if(this.scrollDirection == scrollingList.scrollVertical){
                 newBounds = new bounds(
                     this.bounds.x + marginSpacing,
-                    this.bounds.y + ((i-this.scrollPosition)*(30+marginSpacing)),
+                    this.bounds.y + marginSpacing+((i-this.scrollPosition)*(30+marginSpacing)),
                     this.bounds.w - (marginSpacing*2),
                     30);
             }
@@ -459,6 +513,7 @@ class scrollingList extends element{
             }
             this.elements[i].bounds.setPosition(newBounds.x, newBounds.y);
             this.elements[i].bounds.setSize(newBounds.w, newBounds.h);
+
             if(newBounds.maxX > this.bounds.maxX || newBounds.maxY > this.bounds.maxY){
                 for(let j = i; j < this.elements.length; j++){
                     this.elements[j].hide();
