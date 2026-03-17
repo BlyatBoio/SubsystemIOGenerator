@@ -56,8 +56,8 @@ function initializeUI(){
     submitConstantButton.onPress(()=> {
         let newMenu = new menu(new bounds(0, 0, 120, 60), "");
         let removeButton = new button(new bounds(5, 10, 20, 40), "X")
-        let nameArea = new textArea(new bounds(30, 10, 40, 20));
-        let valueArea = new textArea(new bounds(70, 10, 40, 20));
+        let nameArea = new textArea(new bounds(30, 10, 50, 20));
+        let valueArea = new textArea(new bounds(85, 10, 25, 20));
 
         nameArea.textInput.value(constantNameBox.textInput.value());
         valueArea.textInput.value(constantValueBox.textInput.value());
@@ -121,19 +121,21 @@ function constructMotorMenu(motorName){
     numMotors ++;
     let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, height/5).addSize(-marginSpacing*2, -(height/8 + marginSpacing)), motorName);
     let listOfVariables = new scrollingList(newMotorMenu.bounds.copyDimensions().addPosition(0, 50).addSize(0, -50), [], scrollingList.scrollVertical);
+    let removeButton = new button(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, marginSpacing).setSize(90, 30), "Remove");
     for(let i = 0; i < allMotorVariables.length; i++){
         let newLable = new lable(new bounds(0, 0, 50, 30), allMotorVariables[i]);
         let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
         newCheckbox.bindToElement(newLable);
         listOfVariables.addElement(newLable);
     }
-    let removeMotorButton = new button(new bounds(marginSpacing, height - 100, width/5 - marginSpacing*2, 50), "Remove Motor");
-    removeMotorButton.onPress(() => {
+    
+    
+    removeButton.onPress(() => {
         if(motorScrollBar.tabs.length > 1) {
             motorScrollBar.removeTab(motorScrollBar.tabs.indexOf(newMotorMenu));
             newMotorMenu.hide();
         }});
-    newMotorMenu.addElement(removeMotorButton);
+    newMotorMenu.addElement(removeButton);
     newMotorMenu.addElement(listOfVariables);
     return newMotorMenu;
 }
@@ -589,6 +591,7 @@ class tabScrollBar extends element{
         this.tabs.splice(index, 1);
         this.currentTab = index-1;
         if(this.currentTab < 0) this.currentTab = 0;
+        this.tabs[this.currentTab].show();
     }
     setCurrentTab(index){
         if(index < 0 || index > this.tabs.length){console.error("Index Out Of Bounds In Set Current Tab"); return;}
