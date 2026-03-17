@@ -1,8 +1,9 @@
 let mainSubsystem;
+let mouseScrolled = 0;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  mainSubsystem = new Subsystem("Climber");
+  mainSubsystem = new Subsystem("");
   initializeUI();
 
   /* Example Code Defined Subsystem
@@ -32,10 +33,13 @@ function setup() {
   }
 
 function draw() {
-  background(100);
+  background(20);
   // Draw Top Border
   mouseBounds.setPosition(mouseX, mouseY);
   element.updateAllElements();
-  fill(50);
-  rect(0, 0, width, height/8);
+  mouseScrolled = 0;
+}
+
+function mouseWheel(event){
+  mouseScrolled += event.delta;
 }
