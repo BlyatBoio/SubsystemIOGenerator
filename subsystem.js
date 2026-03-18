@@ -127,12 +127,13 @@ class motor{
 }
 
 class motorLoggedVaraible{
-    static velocity = "Velocity";
     static position = "Position";
-    static closedLoopError = "ClosedLoopError";
+    static velocity = "Velocity";
+    static positionClosedLoopError = "PositionClosedLoopError";
+    static velocityClosedLoopError = "VelocityClosedLoopError";
     static supplyCurrent = "SupplyCurrent";
-    static motorStallCurrent = "MotorStallCurrent";
     static isConnected = "Connected";
+    static temperature = "Temperature";
 
     constructor(motor, valueType){
         this.motor = motor;
@@ -181,10 +182,12 @@ class motorConfig{
     static Slot0 = "Slot0";
     static FeedbackSensorSource = "FeedbackSensorSource";
     static SensorToMechanismRatio = "SensorToMechanismRatio"
+    static MotorOutput = "MotorOutput"
     static Inverted = "Inverted"
     static Brake = 'Brake'
     static CurrentLimits = "CurrentLimits"
-    static SupplyCurrent = "SupplyCurrent"
+    static SupplyCurrentLimit = "SupplyCurrentLimit"
+    static StatorCurrentLimit = "StatorCurrentLimit"
     static KP = "KP";
     static KS = "KS";
     static KV = "KV";

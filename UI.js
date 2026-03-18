@@ -15,7 +15,7 @@ let motorNameBox;
 let subsystemTitleInput;
 
 let allMotorLogVariables = ["Position","Velocity","PositionClosedLoopError","VelocityClosedLoopError","SupplyCurrent","Connected","Temperature"];
-let valuedMotorConfigVariables = ["CAN ID", "SupplyCurrent (Amps)","KP","KS","KV","SensorToMechanismRatio"];
+let valuedMotorConfigVariables = ["CAN ID", "SupplyCurrentLimit","StatorCurrentLimit","KP","KS","KV","SensorToMechanismRatio"];
 let booleanMotorConfigVariables = ["Include Default Feedback","Inverted"];
 let exclusiveMotorConfigVariables = [["x44","x60"],["Position Controlled","Velocity Controlled"]]
 let numMotors = 0;
@@ -32,16 +32,19 @@ let buttonHasBeenPressed = false;
 
 let saveSubsystemFilesButton;
 let motorValueSaves = [];
+let constantSave;
 
 function initializeUI(){
     //global values
-    curColors = new colorScheme([50, 50, 50], [60, 60, 60], [255, 116, 80], [120, 120, 120]);
+    curColors = new colorScheme([50, 50, 50], [60, 60, 60], [ 255,103,31], [120, 120, 120]);
     mouseBounds = new bounds(mouseX - 1, mouseY - 1, 2, 2);
 
     // define constant menu elements
     constantsMenu = new menu(new bounds(width - width/5, 0, width/5, height), "Constants");
     constantList = new scrollingList(constantsMenu.bounds.copyDimensions().addPosition(marginSpacing, height/8).addSize(-marginSpacing*2, -((height/8)+marginSpacing)), [], scrollingList.scrollVertical);
     
+    constantSave = new valueSave("Constants");
+
     constantsMenu.addElement(constantList);
     // define add constant menu
     addConstantMenu = new menu(new bounds(width/2-width/10, height/2-height/10, width/5, height/5));
@@ -77,6 +80,8 @@ function initializeUI(){
         
         valueArea.textInput.style('color', `rgba(50, 50, 50)`);
         valueArea.textInput.style('background-color', `rgba(${curColors.contrast})`);
+
+        nameArea.onUpdate(() => constantSave.updateValue(nameArea.value(), valueArea.value()));
 
         newMenu.addElement(removeButton);
         newMenu.addElement(nameArea);
@@ -160,7 +165,7 @@ function constructMotorMenu(motorName){
     
     let configOrLogScrollBar = new tabScrollBar(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, 50).setSize(newMotorMenu.bounds.w-marginSpacing*2, 60))
 
-    let newMotorSave = new motorValueSave(motorName);
+    let newMotorSave = new valueSave(motorName);
 
     for(let i = 0; i < allMotorLogVariables.length; i++){
         let newLable = new lable(new bounds(0, 0, 50, 30), allMotorLogVariables[i]);
@@ -207,8 +212,14 @@ function constructMotorMenu(motorName){
         
         newCheckbox1.makeExclusive(newCheckbox2);
 
-        newCheckbox1.button.onPress(() => newMotorSave.updateValue(exclusiveMotorConfigVariables[i], newCheckbox1.value()));
-        newCheckbox2.button.onPress(() => newMotorSave.updateValue(exclusiveMotorConfigVariables[i], newCheckbox2.value()));
+        newCheckbox1.button.onPress(() => {
+            newMotorSave.updateValue(exclusiveMotorConfigVariables[i][0], newCheckbox1.value());
+            newMotorSave.updateValue(exclusiveMotorConfigVariables[i][1], newCheckbox2.value());
+        });
+        newCheckbox2.button.onPress(() => {
+            newMotorSave.updateValue(exclusiveMotorConfigVariables[i][0], newCheckbox1.value());
+            newMotorSave.updateValue(exclusiveMotorConfigVariables[i][1], newCheckbox2.value());
+        });
 
         listOfConfigVariables.addElement(newLable1);
         listOfConfigVariables.addElement(newLable2);
@@ -232,14 +243,13 @@ function constructMotorMenu(motorName){
     return newMotorMenu;
 }
 
-class motorValueSave{
+class valueSave{
     constructor(name){
         this.name = name;
         this.values = [];
         motorValueSaves.push(this);
     }
     updateValue(key, value){
-        console.log("Updated at key: " + key)
         for(let v of this.values){
             if(v[0] == key) {
                 v[1] = value;
