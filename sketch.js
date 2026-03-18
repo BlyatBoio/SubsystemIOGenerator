@@ -1,9 +1,7 @@
-let mainSubsystem;
 let mouseScrolled = 0;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  mainSubsystem = new Subsystem("");
   initializeUI();
 
   /* Example Code Defined Subsystem

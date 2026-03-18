@@ -184,7 +184,9 @@ class motorConfig{
     static Inverted = "Inverted"
     static Brake = 'Brake'
     static CurrentLimits = "CurrentLimits"
+    static SupplyCurrent = "SupplyCurrent"
     static KP = "KP";
+    static KS = "KS";
     static KV = "KV";
 }
 

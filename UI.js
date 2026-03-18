@@ -3,7 +3,7 @@ let marginSpacing = 10;
 let curColors;
 
 let motorMenu;
-let motorScrollBar
+let motorScrollBar;
 
 let mouseBounds;
 
@@ -17,6 +17,7 @@ let subsystemTitleInput;
 let allMotorLogVariables = ["Position","Velocity","PositionClosedLoopError","VelocityClosedLoopError","SupplyCurrent","Connected","Temperature"];
 let valuedMotorConfigVariables = ["CAN ID", "SupplyCurrent (Amps)","KP","KS","KV","SensorToMechanismRatio"];
 let booleanMotorConfigVariables = ["Include Default Feedback","Inverted"];
+let exclusiveMotorConfigVariables = [["x44","x60"],["Position Controlled","Velocity Controlled"]]
 let numMotors = 0;
 
 let constantsMenu;
@@ -29,9 +30,12 @@ let constantNameBox;
 let constantValueBox;
 let buttonHasBeenPressed = false;
 
+let saveSubsystemFilesButton;
+let motorValueSaves = [];
+
 function initializeUI(){
     //global values
-    curColors = new colorScheme([50, 50, 50], [60, 60, 60], [255, 95, 31], [120, 120, 120]);
+    curColors = new colorScheme([50, 50, 50], [60, 60, 60], [255, 116, 80], [120, 120, 120]);
     mouseBounds = new bounds(mouseX - 1, mouseY - 1, 2, 2);
 
     // define constant menu elements
@@ -116,7 +120,7 @@ function initializeUI(){
 
     // bind button actions
     submitMotorButton.onPress(()=> {
-        motorScrollBar.addTab(constructMotorMenu(motorNameBox.getValue())); 
+        motorScrollBar.addTab(constructMotorMenu(motorNameBox.value())); 
         addMotorMenu.hide();
         motorNameBox.textInput.value("Motor_"+numMotors);
     });
@@ -133,11 +137,18 @@ function initializeUI(){
     subsystemTitleInput.textInput.style('font-size', '50px');
     subsystemTitleInput.textInput.style('color', `rgba(${curColors.contrast})`);
     subsystemTitleInput.textInput.style('background-color', `rgba(${curColors.primary})`);
+    subsystemTitleInput.textInput.value("Subsystem");
+
+    // define and style save button
+    saveSubsystemFilesButton = new button(new bounds(width/2-width/15, marginSpacing*3+height/8, width/7.5, height/15), "Save");
+    saveSubsystemFilesButton.onPress(()=>{
+        fileManager.saveAllFiles(getSubsystem());
+    });
 }
 
 function constructMotorMenu(motorName){
     numMotors ++;
-    let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, height/8).addSize(-marginSpacing*2, -(height/8 + marginSpacing)), motorName);
+    let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, 120).addSize(-marginSpacing*2, -(120 + marginSpacing)), motorName);
 
     let logMenu = new menu(newMotorMenu.bounds.copyDimensions().addPosition(0, 120).addSize(0, -120), "Logged Variables");
     let configMenu = new menu(newMotorMenu.bounds.copyDimensions().addPosition(0, 120).addSize(0, -120), "Config Values");
@@ -149,10 +160,15 @@ function constructMotorMenu(motorName){
     
     let configOrLogScrollBar = new tabScrollBar(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, 50).setSize(newMotorMenu.bounds.w-marginSpacing*2, 60))
 
+    let newMotorSave = new motorValueSave(motorName);
+
     for(let i = 0; i < allMotorLogVariables.length; i++){
         let newLable = new lable(new bounds(0, 0, 50, 30), allMotorLogVariables[i]);
         let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
         newCheckbox.bindToElement(newLable);
+
+        newCheckbox.button.onPress(() => newMotorSave.updateValue(allMotorLogVariables[i], newCheckbox.value()));
+
         listOfLogVariables.addElement(newLable);
     }
 
@@ -164,6 +180,8 @@ function constructMotorMenu(motorName){
         newTextArea.textInput.style('background-color', `rgba(${curColors.primary})`);
         newTextArea.textInput.value("0");
 
+        newTextArea.onUpdate(() => newMotorSave.updateValue(valuedMotorConfigVariables[i], newTextArea.value()));
+
         newTextArea.bindToElement(newLable);
         listOfConfigVariables.addElement(newLable);
     }
@@ -172,8 +190,28 @@ function constructMotorMenu(motorName){
         let newLable = new lable(new bounds(0, 0, 50, 30), booleanMotorConfigVariables[i]);
         let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
 
+        newCheckbox.button.onPress(() => newMotorSave.updateValue(booleanMotorConfigVariables[i], newCheckbox.value()));
+
         newCheckbox.bindToElement(newLable);
         listOfConfigVariables.addElement(newLable);
+    }
+
+    for(let i = 0; i < exclusiveMotorConfigVariables.length; i++){
+        let newLable1 = new lable(new bounds(0, 0, 50, 30), exclusiveMotorConfigVariables[i][0]);
+        let newLable2 = new lable(new bounds(0, 0, 50, 30), exclusiveMotorConfigVariables[i][1]);
+        let newCheckbox1 = new checkbox(new bounds(40, 0, 10, 30));
+        let newCheckbox2 = new checkbox(new bounds(40, 0, 10, 30));
+
+        newCheckbox1.bindToElement(newLable1);
+        newCheckbox2.bindToElement(newLable2);
+        
+        newCheckbox1.makeExclusive(newCheckbox2);
+
+        newCheckbox1.button.onPress(() => newMotorSave.updateValue(exclusiveMotorConfigVariables[i], newCheckbox1.value()));
+        newCheckbox2.button.onPress(() => newMotorSave.updateValue(exclusiveMotorConfigVariables[i], newCheckbox2.value()));
+
+        listOfConfigVariables.addElement(newLable1);
+        listOfConfigVariables.addElement(newLable2);
     }
 
     logMenu.addElement(listOfLogVariables);
@@ -185,11 +223,38 @@ function constructMotorMenu(motorName){
     removeButton.onPress(() => {
         if(motorScrollBar.tabs.length > 1) {
             motorScrollBar.removeTab(motorScrollBar.tabs.indexOf(newMotorMenu));
+            motorValueSaves.splice(motorValueSaves.indexOf(newMotorSave), 1);
             newMotorMenu.hide();
         }});
+
     newMotorMenu.addElement(configOrLogScrollBar);
     newMotorMenu.addElement(removeButton);
     return newMotorMenu;
+}
+
+class motorValueSave{
+    constructor(name){
+        this.name = name;
+        this.values = [];
+        motorValueSaves.push(this);
+    }
+    updateValue(key, value){
+        console.log("Updated at key: " + key)
+        for(let v of this.values){
+            if(v[0] == key) {
+                v[1] = value;
+                return;
+            }   
+        }
+        this.values.push([key, value]);
+    }
+    getValue(key){
+        for(let v of this.values){
+            if(v[0] == key) return v[1];
+        }
+        console.log("Requested but failed to find value at key: " + key)
+        return undefined;        
+    }
 }
 
 class colorScheme{
@@ -433,11 +498,11 @@ class button extends element{
     constructor(bounds, text){
         super(bounds);
         this.lable = text;
-        this.callback = undefined;
+        this.callbacks = [];
         this.hasBeenPressed = false;
     }
     onPress(callback){
-        this.callback = callback;
+        this.callbacks.push(callback);
     }
     draw(){
         super.draw();
@@ -445,7 +510,11 @@ class button extends element{
         if(this.isVisible && mouseBounds.isPartiallyWithin(this.bounds)) {
             fill(curColors.secondary);
             if(mouseIsPressed){
-                if(!buttonHasBeenPressed && !this.hasBeenPressed && this.callback != undefined) this.callback();
+                if(!buttonHasBeenPressed && !this.hasBeenPressed && this.callbacks != []) {
+                    for(let callback of this.callbacks){
+                        callback();
+                    }
+                }
                 this.hasBeenPressed = true;
                 buttonHasBeenPressed = true;
             }
@@ -468,13 +537,20 @@ class textArea extends element{
         this.textInput = createInput();
         this.textInput.position(this.bounds.x, this.bounds.y);
         this.textInput.size(this.bounds.w, this.bounds.h);
+        this.onUpdateCalls = [];
+    }
+    onUpdate(callback){
+        this.onUpdateCalls.push(callback);
     }
     draw(){
         super.draw();
         this.textInput.position(this.bounds.x, this.bounds.y);
         this.textInput.size(this.bounds.w, this.bounds.h);
+        for(let callback of this.onUpdateCalls){
+            callback();
+        }
     }
-    getValue(){
+    value(){
         return this.textInput.value();
     }
     show(){
@@ -501,7 +577,17 @@ class checkbox extends element{
         if(this.isSelected) this.text = "[X]";
         else this.text = "[  ]";
     }
-    getValue(){
+    setValue(value){
+        this.isSelected = value;
+        if(this.isSelected) this.text = "[X]";
+        else this.text = "[  ]";
+    }
+    makeExclusive(checkbox){
+        this.button.onPress(()=> checkbox.toggle());
+        checkbox.button.onPress(()=> this.toggle());
+        this.setValue(true);
+    }
+    value(){
         return this.isSelected;
     }
     draw(){
