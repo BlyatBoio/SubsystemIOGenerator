@@ -14,7 +14,9 @@ let motorNameBox;
 
 let subsystemTitleInput;
 
-let allMotorVariables = ["Position","Velocity","PositionClosedLoopError","VelocityClosedLoopError","SupplyCurrent","Connected","Temperature"];
+let allMotorLogVariables = ["Position","Velocity","PositionClosedLoopError","VelocityClosedLoopError","SupplyCurrent","Connected","Temperature"];
+let valuedMotorConfigVariables = ["CAN ID", "SupplyCurrent (Amps)","KP","KS","KV","SensorToMechanismRatio"];
+let booleanMotorConfigVariables = ["Include Default Feedback","Inverted"];
 let numMotors = 0;
 
 let constantsMenu;
@@ -29,7 +31,7 @@ let buttonHasBeenPressed = false;
 
 function initializeUI(){
     //global values
-    curColors = new colorScheme(50, 60, 200, 120);
+    curColors = new colorScheme([50, 50, 50], [60, 60, 60], [255, 95, 31], [120, 120, 120]);
     mouseBounds = new bounds(mouseX - 1, mouseY - 1, 2, 2);
 
     // define constant menu elements
@@ -39,17 +41,21 @@ function initializeUI(){
     constantsMenu.addElement(constantList);
     // define add constant menu
     addConstantMenu = new menu(new bounds(width/2-width/10, height/2-height/10, width/5, height/5));
-    submitConstantButton = new button(new bounds(width/2 - width/40, height/2 + height/10 + marginSpacing, width/20, height/20), "Add Constant");
-    addConstantButton = new button(new bounds(width - width/5 + marginSpacing, marginSpacing, 90, 40), "Add Constant");
+    submitConstantButton = new button(new bounds(width/2 - width/40, height/2 + height/10 + marginSpacing, width/20, height/18), "Add Constant");
+    addConstantButton = new button(new bounds(width - width/5 + marginSpacing, marginSpacing, 90, 50), "Add Constant");
     constantNameBox = new textArea(addConstantMenu.bounds.copyDimensions().addSize(-width/30, -height/8).addPosition(width/60, marginSpacing));
     constantValueBox = new textArea(addConstantMenu.bounds.copyDimensions().addSize(-width/30, -height/8).addPosition(width/60, marginSpacing*2 + height/12));
     
     constantNameBox.textInput.style('text-align', 'center');
     constantNameBox.textInput.style('font-size', '20px');
+    constantNameBox.textInput.style('color', `rgba(${curColors.contrast})`);
+    constantNameBox.textInput.style('background-color', `rgba(${curColors.primary})`);
     constantNameBox.textInput.value("Name");
 
     constantValueBox.textInput.style('text-align', 'center');
     constantValueBox.textInput.style('font-size', '20px');
+    constantValueBox.textInput.style('color', `rgba(${curColors.contrast})`);
+    constantValueBox.textInput.style('background-color', `rgba(${curColors.primary})`);
     constantValueBox.textInput.value("Value");
 
     // bind button actions
@@ -62,12 +68,20 @@ function initializeUI(){
         nameArea.textInput.value(constantNameBox.textInput.value());
         valueArea.textInput.value(constantValueBox.textInput.value());
 
+        nameArea.textInput.style('color', `rgba(50, 50, 50)`);
+        nameArea.textInput.style('background-color', `rgba(${curColors.contrast})`);
+        
+        valueArea.textInput.style('color', `rgba(50, 50, 50)`);
+        valueArea.textInput.style('background-color', `rgba(${curColors.contrast})`);
+
         newMenu.addElement(removeButton);
         newMenu.addElement(nameArea);
         newMenu.addElement(valueArea);
 
         constantList.addElement(newMenu);
         removeButton.onPress(() => constantList.removeElement(constantList.elements.indexOf(newMenu)));
+        constantNameBox.textInput.value("Name");
+        constantValueBox.textInput.value("Value");
         addConstantMenu.hide();
     });
     addConstantButton.onPress(() => addConstantMenu.show());
@@ -96,6 +110,8 @@ function initializeUI(){
     
     motorNameBox.textInput.style('text-align', 'center');
     motorNameBox.textInput.style('font-size', '30px');
+    motorNameBox.textInput.style('color', `rgba(${curColors.contrast})`);
+    motorNameBox.textInput.style('background-color', `rgba(${curColors.primary})`);
     motorNameBox.textInput.value("Motor_1");
 
     // bind button actions
@@ -115,28 +131,64 @@ function initializeUI(){
     subsystemTitleInput = new textArea(new bounds(width/2 - width/10, marginSpacing, width/5, height / 8));
     subsystemTitleInput.textInput.style('text-align', 'center');
     subsystemTitleInput.textInput.style('font-size', '50px');
+    subsystemTitleInput.textInput.style('color', `rgba(${curColors.contrast})`);
+    subsystemTitleInput.textInput.style('background-color', `rgba(${curColors.primary})`);
 }
 
 function constructMotorMenu(motorName){
     numMotors ++;
-    let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, height/5).addSize(-marginSpacing*2, -(height/8 + marginSpacing)), motorName);
-    let listOfVariables = new scrollingList(newMotorMenu.bounds.copyDimensions().addPosition(0, 50).addSize(0, -50), [], scrollingList.scrollVertical);
+    let newMotorMenu = new menu(motorMenu.bounds.copyDimensions().addPosition(marginSpacing, height/8).addSize(-marginSpacing*2, -(height/8 + marginSpacing)), motorName);
+
+    let logMenu = new menu(newMotorMenu.bounds.copyDimensions().addPosition(0, 120).addSize(0, -120), "Logged Variables");
+    let configMenu = new menu(newMotorMenu.bounds.copyDimensions().addPosition(0, 120).addSize(0, -120), "Config Values");
+
+    let listOfLogVariables = new scrollingList(logMenu.bounds.copyDimensions().addPosition(0, 50).addSize(0, -50), [], scrollingList.scrollVertical);
+    let listOfConfigVariables = new scrollingList(configMenu.bounds.copyDimensions().addPosition(0, 50).addSize(0, -50), [], scrollingList.scrollVertical);
+
     let removeButton = new button(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, marginSpacing).setSize(90, 30), "Remove");
-    for(let i = 0; i < allMotorVariables.length; i++){
-        let newLable = new lable(new bounds(0, 0, 50, 30), allMotorVariables[i]);
+    
+    let configOrLogScrollBar = new tabScrollBar(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, 50).setSize(newMotorMenu.bounds.w-marginSpacing*2, 60))
+
+    for(let i = 0; i < allMotorLogVariables.length; i++){
+        let newLable = new lable(new bounds(0, 0, 50, 30), allMotorLogVariables[i]);
         let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
         newCheckbox.bindToElement(newLable);
-        listOfVariables.addElement(newLable);
+        listOfLogVariables.addElement(newLable);
+    }
+
+    for(let i = 0; i < valuedMotorConfigVariables.length; i++){
+        let newLable = new lable(new bounds(0, 0, 50, 40), valuedMotorConfigVariables[i]);
+        let newTextArea = new textArea(new bounds(39, 0, 10, 30));
+
+        newTextArea.textInput.style('color', `rgba(${curColors.contrast})`);
+        newTextArea.textInput.style('background-color', `rgba(${curColors.primary})`);
+        newTextArea.textInput.value("0");
+
+        newTextArea.bindToElement(newLable);
+        listOfConfigVariables.addElement(newLable);
     }
     
-    
+    for(let i = 0; i < booleanMotorConfigVariables.length; i++){
+        let newLable = new lable(new bounds(0, 0, 50, 30), booleanMotorConfigVariables[i]);
+        let newCheckbox = new checkbox(new bounds(40, 0, 10, 30));
+
+        newCheckbox.bindToElement(newLable);
+        listOfConfigVariables.addElement(newLable);
+    }
+
+    logMenu.addElement(listOfLogVariables);
+    configMenu.addElement(listOfConfigVariables);
+
+    configOrLogScrollBar.addTab(logMenu);
+    configOrLogScrollBar.addTab(configMenu);
+
     removeButton.onPress(() => {
         if(motorScrollBar.tabs.length > 1) {
             motorScrollBar.removeTab(motorScrollBar.tabs.indexOf(newMotorMenu));
             newMotorMenu.hide();
         }});
+    newMotorMenu.addElement(configOrLogScrollBar);
     newMotorMenu.addElement(removeButton);
-    newMotorMenu.addElement(listOfVariables);
     return newMotorMenu;
 }
 
@@ -370,6 +422,7 @@ class menu extends element{
         stroke(curColors.outline);
         rect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
         fill(curColors.contrast);
+        stroke(0);
         textAlign(CENTER);
         textSize(this.bounds.w/10);
         text(this.lable, this.bounds.x, this.bounds.y + marginSpacing, this.bounds.w, this.bounds.h);
@@ -402,6 +455,7 @@ class button extends element{
         stroke(curColors.outline);
         rect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
         fill(curColors.contrast);
+        stroke(0);
         textAlign(CENTER);
         textSize(this.bounds.w/5);
         text(this.lable, this.bounds.x, this.bounds.y + marginSpacing/2, this.bounds.w, this.bounds.h);
@@ -480,6 +534,7 @@ class lable extends element{
         stroke(curColors.outline);
         rect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
         fill(curColors.contrast);
+        stroke(0);
         textAlign(LEFT);
         textSize(this.bounds.w/20);
         if(this.lableGetter != undefined) this.lable = this.lableGetter();
@@ -600,7 +655,12 @@ class tabScrollBar extends element{
         this.currentTab = index;
         this.tabs[this.currentTab].show();
     }
-    draw(){
-        super.draw();
+    show(){
+        this.isVisible = true;
+        this.selectionList.show();
+        for(let i = 0; i < this.tabs; i++){
+            this.tabs[i].hide();
+        }
+        this.tabs[this.currentTab].show()
     }
 }

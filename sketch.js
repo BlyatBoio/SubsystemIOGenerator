@@ -39,6 +39,10 @@ function draw() {
   element.updateAllElements();
   mouseScrolled = 0;
   if(!mouseIsPressed) buttonHasBeenPressed = false;
+  if(keyIsDown(27)){
+    addMotorMenu.hide();
+    addConstantMenu.hide();
+  }
 }
 
 function mouseWheel(event){
