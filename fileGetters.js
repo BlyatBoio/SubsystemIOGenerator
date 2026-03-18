@@ -13,9 +13,18 @@ class fileManager{
     static getConstantsString(subsystem){
         let constants = "";
         for(let constant of subsystem.constants){
-            constants += `\n\tpublic static final ${constant.type} ${constant.name} = ${constant.value};`;
+            constants += `\n\tpublic static final ${constant.type} ${constant.name} = ${constant.type=="String"?'"':''}${constant.value}${constant.type=="String"?'"':''};`;
         }
-        return `public class ${subsystem.name}Constants{${constants}\n}`;
+        let returnString =
+`
+package frc.robot.subsystems.${subsystem.name.toLowerCase()};
+
+import edu.wpi.first.units.measure.*;
+import static edu.wpi.first.units.Units.*;
+
+public class ${subsystem.name}Constants{${constants}\n}`;
+    
+        return returnString;
     }
 
     static getClassString(subsystem){
@@ -39,7 +48,16 @@ class fileManager{
         }
 
         let returnString = 
-`public class ${subsystem.name} extends SubsystemBase{
+`
+package frc.robot.subsystems.${subsystem.name.toLowerCase()};
+
+import edu.wpi.first.units.measure.*;
+import static edu.wpi.first.units.Units.*;
+import edu.wpi.first.wpilibj2.command.*;
+
+import org.littletonrobotics.junction.Logger;
+
+public class ${subsystem.name} extends SubsystemBase{
 \tpublic final ${subsystem.name}IO io;
 \tprivate final ${subsystem.name}IOInputsAutoLogged inputs = new ${subsystem.name}IOInputsAutoLogged();
 
@@ -72,7 +90,15 @@ ${gettersString}
         }
 
         let returnString =  
-`public interface ${subsystem.name}IO {
+`
+package frc.robot.subsystems.${subsystem.name.toLowerCase()};
+
+import edu.wpi.first.units.measure.*;
+import static edu.wpi.first.units.Units.*;
+
+import org.littletonrobotics.junction.AutoLog;
+
+public interface ${subsystem.name}IO {
 \t@AutoLog
 \tpublic static class ${subsystem.name}IOInputs {${variableDefinitions}
 \t}
@@ -96,12 +122,12 @@ ${gettersString}
             pidDefinitions += `\n\tprivate static PIDController ${motor.name}Controller = new PIDController(0, 0, 0); //TODO Auto generated`
             voltsDefinitions += `\n\tprivate double ${motor.name}AppliedVolts = 0;`
             
-            motorSimDefinitions += `\t\t${motor.name}Sim =\n\t\tnew DCMotorSim(\n\t\t\tLinearSystemID.createDCMotorSystem(${motor.name}, 0.02, 1), //TODO Auto Generated\n\t\t\t${motor.name});\n`
+            motorSimDefinitions += `\t\t${motor.name}Sim =\n\t\tnew DCMotorSim(\n\t\t\tLinearSystemId.createDCMotorSystem(${motor.name}, 0.02, 1), //TODO Auto Generated\n\t\t\t${motor.name});\n`
             
-            voltUpdates += `\n\n\t\t${motor.name}AppliedVolts = ${motor.name}Controller.calculate(${motor.name}Sim.getAngular${motor.prefferedControlType}());`
-            voltUpdates += `\n\t\t${motor.name}Sim.setInputVoltate(${motor.name}AppliedVolts);`
+            voltUpdates += `\n\n\t\t${motor.name}AppliedVolts = ${motor.name}Controller.calculate(${motor.name}Sim.getAngular${motor.prefferedControlType==controlMethod.positionVoltage?"PositionRotations":"VelocityRPM"}());`
+            voltUpdates += `\n\t\t${motor.name}Sim.setInputVoltage(${motor.name}AppliedVolts);`
             voltUpdates += `\n\t\t${motor.name}Sim.update(0.02);`
-            
+
             for(let value of motor.loggedVariables){
                 inputUpdates += `inputs.${motor.name}${value.valueType} = ${value.getSimGetterFunction()};\n\t\t`
             }
@@ -114,7 +140,19 @@ ${gettersString}
             controlMethodDefinitions += subsystem.controlMethods[i].getSimFunctionAsString()+"\n\t";
         }
         let returnString =
-`public class ${subsystem.name}IOSim{
+`
+package frc.robot.subsystems.${subsystem.name.toLowerCase()};
+
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+
+import edu.wpi.first.units.measure.*;
+import static edu.wpi.first.units.Units.*;
+
+public class ${subsystem.name}IOSim{
 \t${motorDefinitions}\n${pidDefinitions}\n${voltsDefinitions}
 
 \tpublic ${subsystem.name}IOSim(){
@@ -146,9 +184,9 @@ ${motorSimDefinitions}
             }
 
             motorConfigDefinitions += motor.getConfigAsString()+"\n\t";
-            neutralDefinitions += `${motor.name}.setNeutralMode(${motor.neutralMode});`;
+            if(motor.neutralMode != "" && motor.neutralMode != undefined) neutralDefinitions += `${motor.name}.setNeutralMode(${motor.neutralMode});\n\t\t`;
             tryUntilOkDefinitions += `tryUntilOk(\n\t\t\t5,\n\t\t\t() ->${motor.name}\n\t\t\t.getConfigurator()\n\t\t\t.apply(${motor.name}Config, 0.25));\n\t\t`;
-            baseStatusSignalDefinitions += motor.getStautsSignalDefinition()+"\n\t\t";
+            baseStatusSignalDefinitions += motor.getStatusSignalDefinition()+"\n\t\t";
         }
 
         let controlMethodDefinitions = "";
@@ -158,11 +196,38 @@ ${motorSimDefinitions}
         }
 
         let returnString = 
-`public class ${subsystem.name}IOReal{
+`
+package frc.robot.subsystems.${subsystem.name.toLowerCase()};
+
+import static frc.robot.util.PhoenixUtil.*;
+
+import edu.wpi.first.units.measure.*;
+import static edu.wpi.first.units.Units.*;
+
+import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+import com.ctre.phoenix6.configs.FeedbackConfigs;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
+import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.CoastOut;
+import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.wpilibj.DigitalInput;
+
+public class ${subsystem.name}IOReal implements ${subsystem.name}IO){
 \t${motorDefinitions}
 \t${debouncerDefinitions}
 ${statusSignalDefinitions}
-\tpublic ${subsystem.name}IOReal{
+\tpublic ${subsystem.name}IOReal(){
 \t\t${motorConfigDefinitions}
 \t\t${neutralDefinitions}
 \t\t${tryUntilOkDefinitions}

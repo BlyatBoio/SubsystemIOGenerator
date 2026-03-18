@@ -91,10 +91,10 @@ class motor{
             newFormatName += individualNamePieces[i];
             if(i != individualNamePieces.length) newFormatName += "_";
         }
-        return `private final TalonFX ${this.name} =\n\t\tnew TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID, ${this.subsystem.name}Constants.canivoreCANBus);`
+        return `private final TalonFX ${this.name} =\n\t\tnew TalonFX(${this.subsystem.name}Constants.${this.name.toUpperCase()}_MOTOR_ID);`
     }
     getSimDefinitionAsString(){
-        return `private static final DCMotor ${this.name} = new DCMotor.getKrakenX${this.type==motor.x44?"44":"60"}Foc(1);\n\tprivate DCMotorSim ${this.name}Sim;`
+        return `private static final DCMotor ${this.name} = DCMotor.getKrakenX${this.type==motor.x44?"44":"60"}${this.type==motor.x44?"(1)":"Foc(1)"};\n\tprivate DCMotorSim ${this.name}Sim;`
     }
     getConfigAsString(){
         let allMotorValues = "";
@@ -108,19 +108,27 @@ class motor{
         this.loggedVariables.push(new motorLoggedVaraible(this, type));
         return this;
     }
-    getStautsSignalDefinition(){
+    getStatusSignalDefinition(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables[i].valueType}`
-            if(i < this.loggedVariables.length-1) variableNames += ", ";
+            if(!this.loggedVariables[i].valueType == motorLoggedVaraible.isConnected){
+                variableNames += `${this.name}${this.loggedVariables[i].valueType}`
+                if(i < this.loggedVariables.length-1) variableNames += ", ";
+            }
         }
         return `BaseStatusSignal.setUpdateFrequencyForAll(\n\t\t\t${this.name}.getIsProLicensed().getValue() ? 200 : 50, ${variableNames});`
     }
     getStatusUpdate(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            variableNames += `${this.name}${this.loggedVariables[i].valueType}`
-            if(i < this.loggedVariables.length-1) variableNames += ", ";
+            if(!this.loggedVariables[i].valueType == motorLoggedVaraible.isConnected){
+                variableNames += `${this.name}${this.loggedVariables[i].valueType}`
+                if(i < this.loggedVariables.length-1) variableNames += ", ";
+            }
+        }
+        let connectedUpdate = `inputs.${this.name}Connected = ${this.name}Debounce.calculate(${this.name}Status.isOK());`
+        for(let v of this.loggedVariables){
+            if(v.valueType == motorLoggedVaraible.isConnected) return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});\n\t\t`+connectedUpdate;
         }
         return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});`;
     }
@@ -140,39 +148,46 @@ class motorLoggedVaraible{
         this.valueType = valueType;
     }
     getStatusDefinition(){
-        return `\tprivate final StatusSignal<${this.getVariableType()}> ${this.motor.name}${this.valueType} = ${this.motor.name}.get${this.valueType}();`
+        if(this.valueType==motorLoggedVaraible.isConnected) return "";
+        return `\tprivate final StatusSignal<${this.getVariableType().charAt(0).toUpperCase()+this.getVariableType().slice(1)}> ${this.motor.name}${this.valueType} = ${this.motor.name}.get${this.valueType}();`
     }
     getStatusUpdate(){
         return `inputs.${this.motor.name}${this.valueType} = ${this.motor.name}${this.valueType}.getValue();`
     }
     getSimGetterFunction(){
         switch(this.valueType){
-            case motorLoggedVaraible.velocity: return `Angle.ofBaseUnits(${this.motor.name}Sim.getAngularPositionRotations(), Rotations)`;
-            case motorLoggedVaraible.position: return `${this.motor.name}Sim.getAngularPositionRotations()`;
-            case motorLoggedVaraible.closedLoopError: return `${this.motor.name}Sim.getError()`;
+            case motorLoggedVaraible.velocity: return `Angle.ofBaseUnits(${this.motor.name}Sim.getAngularVelocity(), Rotations)`;
+            case motorLoggedVaraible.position: return `${this.motor.name}Sim.getAngularPosition()`;
+            case motorLoggedVaraible.positionClosedLoopError: return `${this.motor.name}Controller.getError()`;
+            case motorLoggedVaraible.velocityClosedLoopError: return `${this.motor.name}Controller.getError()`;
             case motorLoggedVaraible.supplyCurrent: return "null";
             case motorLoggedVaraible.motorStallCurrent: return "null";
-            case motorLoggedVaraible.isConnected: return "true";;
+            case motorLoggedVaraible.isConnected: return "true";
+            case motorLoggedVaraible.temperature: return "Kelvin.zero()";
         }
     }
     getVariableType(){
         switch(this.valueType){
             case motorLoggedVaraible.velocity: return "AngularVelocity";
             case motorLoggedVaraible.position: return "Angle";
-            case motorLoggedVaraible.closedLoopError: return "double";
+            case motorLoggedVaraible.positionClosedLoopError: return "double";
+            case motorLoggedVaraible.velocityClosedLoopError: return "double";
             case motorLoggedVaraible.supplyCurrent: return "Current";
             case motorLoggedVaraible.motorStallCurrent: return "Current";
             case motorLoggedVaraible.isConnected: return "boolean";
+            case motorLoggedVaraible.temperature: return "Temperature";
         }
     }
     getDefaultValue(){
         switch(this.valueType){
             case motorLoggedVaraible.velocity: return "RotationsPerSecond.zero()";
             case motorLoggedVaraible.position: return "Degrees.zero()";
-            case motorLoggedVaraible.closedLoopError: return "0";
+            case motorLoggedVaraible.positionClosedLoopError: return "0";
+            case motorLoggedVaraible.velocityClosedLoopError: return "0";
             case motorLoggedVaraible.supplyCurrent: return "Amps.zero()";
             case motorLoggedVaraible.motorStallCurrent: return "Amps.zero()";
             case motorLoggedVaraible.isConnected: return "true";
+            case motorLoggedVaraible.temperature: return "Kelvin.zero()";
         }
     }
 }

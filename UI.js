@@ -34,10 +34,15 @@ let saveSubsystemFilesButton;
 let motorValueSaves = [];
 let constantSave;
 
+//let goofyahfont;
+
 function initializeUI(){
     //global values
     curColors = new colorScheme([50, 50, 50], [60, 60, 60], [ 255,103,31], [120, 120, 120]);
     mouseBounds = new bounds(mouseX - 1, mouseY - 1, 2, 2);
+
+    //goofyahfont = loadFont("font.ttf")
+    //textFont(goofyahfont);
 
     // define constant menu elements
     constantsMenu = new menu(new bounds(width - width/5, 0, width/5, height), "Constants");
@@ -166,6 +171,7 @@ function constructMotorMenu(motorName){
     let configOrLogScrollBar = new tabScrollBar(newMotorMenu.bounds.copyDimensions().addPosition(marginSpacing, 50).setSize(newMotorMenu.bounds.w-marginSpacing*2, 60))
 
     let newMotorSave = new valueSave(motorName);
+    motorValueSaves.push(newMotorSave);
 
     for(let i = 0; i < allMotorLogVariables.length; i++){
         let newLable = new lable(new bounds(0, 0, 50, 30), allMotorLogVariables[i]);
@@ -247,16 +253,16 @@ class valueSave{
     constructor(name){
         this.name = name;
         this.values = [];
-        motorValueSaves.push(this);
     }
     updateValue(key, value){
+        let keyAlreadyExists = false;
         for(let v of this.values){
             if(v[0] == key) {
                 v[1] = value;
-                return;
+                keyAlreadyExists = true;
             }   
         }
-        this.values.push([key, value]);
+        if(!keyAlreadyExists) this.values.push([key, value]);
     }
     getValue(key){
         for(let v of this.values){
@@ -635,7 +641,7 @@ class lable extends element{
         textSize(this.bounds.w/20);
         if(this.lableGetter != undefined) this.lable = this.lableGetter();
         
-        text(this.lable, this.bounds.x + marginSpacing, this.bounds.y+marginSpacing/2, this.bounds.w, this.bounds.h);
+        text(this.lable, this.bounds.x + marginSpacing, this.bounds.y+marginSpacing/2, this.bounds.w,);
     }
 }
 
