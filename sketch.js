@@ -41,6 +41,8 @@ function draw() {
     addMotorMenu.hide();
     addConstantMenu.hide();
   }
+  textSize(20);
+  text("V1.0", 50, height - 20);
 }
 
 function mouseWheel(event){
