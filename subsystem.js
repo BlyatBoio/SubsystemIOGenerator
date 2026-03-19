@@ -111,24 +111,20 @@ class motor{
     getStatusSignalDefinition(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            if(!this.loggedVariables[i].valueType == motorLoggedVaraible.isConnected){
+            if(this.loggedVariables[i].valueType != motorLoggedVaraible.isConnected){
                 variableNames += `${this.name}${this.loggedVariables[i].valueType}`
                 if(i < this.loggedVariables.length-1) variableNames += ", ";
             }
         }
-        return `BaseStatusSignal.setUpdateFrequencyForAll(\n\t\t\t${this.name}.getIsProLicensed().getValue() ? 200 : 50, ${variableNames});`
+        return `BaseStatusSignal.setUpdateFrequencyForAll(\n\t\t\t${this.name}.getIsProLicensed().getValue() ? 200 : 50${variableNames!=""?", ":""}${variableNames });`
     }
     getStatusUpdate(){
         let variableNames = "";
         for(let i = 0; i < this.loggedVariables.length; i++){
-            if(!this.loggedVariables[i].valueType == motorLoggedVaraible.isConnected){
+            if(this.loggedVariables[i].valueType != motorLoggedVaraible.isConnected){
                 variableNames += `${this.name}${this.loggedVariables[i].valueType}`
                 if(i < this.loggedVariables.length-1) variableNames += ", ";
             }
-        }
-        let connectedUpdate = `inputs.${this.name}Connected = ${this.name}Debounce.calculate(${this.name}Status.isOK());`
-        for(let v of this.loggedVariables){
-            if(v.valueType == motorLoggedVaraible.isConnected) return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});\n\t\t`+connectedUpdate;
         }
         return `var ${this.name}Status = BaseStatusSignal.refreshAll(${variableNames});`;
     }
@@ -149,14 +145,15 @@ class motorLoggedVaraible{
     }
     getStatusDefinition(){
         if(this.valueType==motorLoggedVaraible.isConnected) return "";
-        return `\tprivate final StatusSignal<${this.getVariableType().charAt(0).toUpperCase()+this.getVariableType().slice(1)}> ${this.motor.name}${this.valueType} = ${this.motor.name}.get${this.valueType}();`
+        return `\tprivate final StatusSignal<${this.getVariableType().charAt(0).toUpperCase()+this.getVariableType().slice(1)}> ${this.motor.name}${this.valueType} = ${this.motor.name}.${this.getRealGetterFunction(this.valueType)};`
     }
     getStatusUpdate(){
+        if(this.valueType == motorLoggedVaraible.isConnected) return `inputs.${this.motor.name}Connected = ${this.motor.name}Debounce.calculate(${this.motor.name}Status.isOK());`
         return `inputs.${this.motor.name}${this.valueType} = ${this.motor.name}${this.valueType}.getValue();`
     }
     getSimGetterFunction(){
         switch(this.valueType){
-            case motorLoggedVaraible.velocity: return `Angle.ofBaseUnits(${this.motor.name}Sim.getAngularVelocity(), Rotations)`;
+            case motorLoggedVaraible.velocity: return `${this.motor.name}Sim.getAngularVelocity()`;
             case motorLoggedVaraible.position: return `${this.motor.name}Sim.getAngularPosition()`;
             case motorLoggedVaraible.positionClosedLoopError: return `${this.motor.name}Controller.getError()`;
             case motorLoggedVaraible.velocityClosedLoopError: return `${this.motor.name}Controller.getError()`;
@@ -176,6 +173,14 @@ class motorLoggedVaraible{
             case motorLoggedVaraible.motorStallCurrent: return "Current";
             case motorLoggedVaraible.isConnected: return "boolean";
             case motorLoggedVaraible.temperature: return "Temperature";
+        }
+    }
+    getRealGetterFunction(){
+        switch(this.valueType){
+            case motorLoggedVaraible.positionClosedLoopError: return `getClosedLoopError()`;
+            case motorLoggedVaraible.velocityClosedLoopError: return `getClosedLoopError()`;
+            case motorLoggedVaraible.temperature: return "getDeviceTemp()";
+            default: return `get${this.valueType}()`;
         }
     }
     getDefaultValue(){

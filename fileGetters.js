@@ -152,7 +152,7 @@ import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.units.measure.*;
 import static edu.wpi.first.units.Units.*;
 
-public class ${subsystem.name}IOSim{
+public class ${subsystem.name}IOSim implements ${subsystem.name}IO{
 \t${motorDefinitions}\n${pidDefinitions}\n${voltsDefinitions}
 
 \tpublic ${subsystem.name}IOSim(){
@@ -223,7 +223,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.wpilibj.DigitalInput;
 
-public class ${subsystem.name}IOReal implements ${subsystem.name}IO){
+public class ${subsystem.name}IOReal implements ${subsystem.name}IO{
 \t${motorDefinitions}
 \t${debouncerDefinitions}
 ${statusSignalDefinitions}
